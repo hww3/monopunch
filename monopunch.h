@@ -35,6 +35,9 @@ void beginPunch();
 void endPunch();
 void readPunch();
 void sendcode(unsigned short * code);
+void goFault();
+void goOnline();
+
 void drain();
 void low_sendcode(unsigned short * code);
 void reset_buffer();

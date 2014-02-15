@@ -1,8 +1,26 @@
 // Do not remove the include below
 #include "monopunch.h"
 #include <SerialCommand.h>
+#include <PinChangeInt.h>
+#include <PinChangeIntConfig.h>
 
 //#define DEBUG
+
+/*
+ * PORTB
+ * PORTC
+ * PORTD
+ * PORTF PF0..PF6 PUNCHES
+ * PF7 = FORWARD FEED
+ * PE0 = REVERSE FEED
+ * PE1 = FEED DISABLE
+ * PE5 = HARDWARE INHIBIT
+ * PE6 = FAULT (INPUT)
+ * PE7 = ONLINE (INPUT)
+ * PE4 = TEST (INPUT)
+ * PA0 = DATA LED (OUTPUT)
+ * PA1 = FAULT LED (OUTPUT)
+ */
 
 SerialCommand cmd;
 int inPunch = 0;
@@ -19,7 +37,26 @@ void setup()
 	memset(buf, 0, 6);
 
 	Serial.begin(9600); // USB is always 12 Mbit/sec
-	pinMode(6, OUTPUT);
+
+	PORTB = 0;
+	PORTC = 0;
+	PORTD = 0;
+	PORTF = 0;
+	DDRB = 1;
+	DDRC = 1;
+	DDRD = 1;
+	DDRF = 1;
+
+	DDRE &= (1<<PE0); // OUTPUT
+	DDRE &= (1<<PE1); // OUTPUT
+	DDRE &= (1<<PE5); // OUTPUT
+	DDRE &= ~(1<<PE6); // INPUT
+	DDRE &= ~(1<<PE7); // INPUT
+	DDRE &= ~(1<<PE4); // INPUT
+
+	attachInterrupt(INT4, goTest, CHANGE);
+	attachInterrupt(INT6, goFault, CHANGE);
+	attachInterrupt(INT7, goOnline, CHANGE);
 
 	cmd.addCommand("AT", displayHello);
   cmd.addCommand("ATI", displayVersion);
@@ -32,6 +69,23 @@ void setup()
   Serial.println("Ready");
 }
 
+
+void goTest()
+{
+  // TODO
+}
+
+
+void goOnline()
+{
+  online = digitalRead(18);
+
+}
+
+void goFault()
+{
+  paperfault = digitalRead(19);
+}
 // This gets set as the default handler, and gets called when no other command matches.
 void unrecognized(const char *command) {
   Serial.println("What?");
@@ -70,12 +124,26 @@ void displayStatus()
 
 void advanceLine()
 {
+	PORTB = 0;
+	PORTC = 0;
+	PORTD = 0;
+	PORTF = 0b10000000; // leave the high pin on, for paper feed.
 
+	delay(6);
+
+	PORTF = 0;
 }
 
 void reverseLine()
 {
+	PORTB = 0;
+	PORTC = 0;
+	PORTD = 0;
+	PORTF = 0;
+  PORTE |= (1<<PE0);
+	delay(6);
 
+  PORTE &= ~(1<<PE0);
 }
 
 void beginPunch()
@@ -308,6 +376,23 @@ void low_sendcode(unsigned short * code)
 
 	Serial.write("\n");
 #endif /* DEBUG */
+	PORTB = code[3];
+	PORTC = code[2];
+	PORTD = code[2];
+	PORTF = code[0];
+
+	delay(3);
+
+	PORTB = 0;
+	PORTC = 0;
+	PORTD = 0;
+	PORTF &= 0b10000000; // leave the high pin on, for paper feed.
+
+	delay(3);
+
+	PORTF = 0;
+
+	delay(45);
 }
 
 void drain()
@@ -315,6 +400,7 @@ void drain()
 	while(Serial.available())
 		Serial.read();
 }
+
 void loop()
 {
 	if (Serial.dtr())

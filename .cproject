@@ -23,6 +23,7 @@
 								<option id="it.baeyens.arduino.compiler.cpp.sketch.option.incpath.2094394528" name="Include Paths (-I)" superClass="it.baeyens.arduino.compiler.cpp.sketch.option.incpath" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/monopunch/arduino/core}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/monopunch/Libraries/Arduino-SerialCommand}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/monopunch/Libraries/arduino-pinchangeint-read-only}&quot;"/>
 								</option>
 								<inputType id="it.baeyens.arduino.compiler.cpp.sketch.input.1185028627" name="CPP source files" superClass="it.baeyens.arduino.compiler.cpp.sketch.input"/>
 							</tool>
@@ -30,6 +31,7 @@
 								<option id="it.baeyens.arduino.compiler.c.sketch.option.incpath.955167576" name="Include Paths (-I)" superClass="it.baeyens.arduino.compiler.c.sketch.option.incpath" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/monopunch/arduino/core}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/monopunch/Libraries/Arduino-SerialCommand}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/monopunch/Libraries/arduino-pinchangeint-read-only}&quot;"/>
 								</option>
 								<inputType id="it.baeyens.arduino.compiler.c.sketch.input.148754489" name="C Source Files" superClass="it.baeyens.arduino.compiler.c.sketch.input"/>
 							</tool>
