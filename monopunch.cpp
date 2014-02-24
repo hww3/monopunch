@@ -1,8 +1,7 @@
 // Do not remove the include below
 #include "monopunch.h"
 #include <SerialCommand.h>
-#include <PinChangeInt.h>
-#include <PinChangeIntConfig.h>
+#include <TimerOne.h>
 
 //#define DEBUG
 
@@ -18,38 +17,68 @@
  * PE6 = FAULT (INPUT)
  * PE7 = ONLINE (INPUT)
  * PE4 = TEST (INPUT)
- * PA0 = DATA LED (OUTPUT)
- * PA1 = FAULT LED (OUTPUT)
+ * PA4 = DATA LED (OUTPUT)
+ * PA5 = FAULT LED (OUTPUT)
  */
+
+#define READONLINE() (PINE & _BV(PE7))
+#define READFAULT() (PINE & _BV(PE6))
+#define READTEST() (!(PINE & _BV(PE4)))
+#define READDATA() (PINA & _BV(PA4))
+
+#define FAULT(X) (X?(PORTA |= (1<<PA5)):(PORTA &= ~(1<<PA5)))
+#define DATA(X) (X?(PORTA |= (1<<PA4)):(PORTA &= ~(1<<PA4)))
+#define ONLINE(X) (X?(PORTE |= (1<<PE5)):(PORTE &= ~(1<<PE5)))
+
+//TimerOne * Timer;
 
 SerialCommand cmd;
 int inPunch = 0;
 int serialUp = 0;
 int online = 1	;
 int paperfault = 0;
+int inTest = 0;
 unsigned short * buf;
+unsigned short * testbuf; // the buffer for current test pins.
 int bufpos = 0;
-
+long timeDown = 0;
+int lastBlink = 0;
 //The setup function is called once at startup of the sketch
 void setup()
 {
 	buf = (unsigned short *)malloc(6);
 	memset(buf, 0, 6);
+	testbuf = (unsigned short *)malloc(5);
+	memset(testbuf, 1, 5);
 
 	Serial.begin(9600); // USB is always 12 Mbit/sec
 
+	PORTA = 0;
 	PORTB = 0;
 	PORTC = 0;
 	PORTD = 0;
+	PORTE = 0;
 	PORTF = 0;
-	DDRB = 1;
-	DDRC = 1;
-	DDRD = 1;
-	DDRF = 1;
+	PORTE|=(1<<PE1);
 
-	DDRE &= (1<<PE0); // OUTPUT
-	DDRE &= (1<<PE1); // OUTPUT
-	DDRE &= (1<<PE5); // OUTPUT
+	DDRB = 0xff;
+	DDRC = 0xff;
+	DDRD = 0xff;
+	DDRF = 0xff;
+
+	DDRE |= (1<<PE0); // OUTPUT
+	DDRE |= (1<<PE1); // OUTPUT
+	DDRE |= (1<<PE5); // OUTPUT
+
+	PORTE |= (1<<PE4);
+//	PORTE |= (1<<PE6);
+//	PORTE &= ~(1<<PE7);
+
+	DDRA |= (1<<PA5); // OUTPUT
+	DDRA |= (1<<PA4); // OUTPUT
+	DDRA |= (1<<PA0); // OUTPUT
+
+
 	DDRE &= ~(1<<PE6); // INPUT
 	DDRE &= ~(1<<PE7); // INPUT
 	DDRE &= ~(1<<PE4); // INPUT
@@ -64,27 +93,132 @@ void setup()
   cmd.addCommand("ATF", advanceLine);
   cmd.addCommand("ATR", reverseLine);
   cmd.addCommand("ATP", beginPunch);
+
 //  sCmd.addCommand("P",     processCommand);  // Converts two arguments to integers and echos them back
   cmd.setDefaultHandler(unrecognized);      // Handler for command that isn't matched  (says "What?")
-  Serial.println("Ready");
+//  Serial.println("Ready");
+
+  blinkLeds();
+
+
+  goOnline();
+ // goTest();
+  goFault(); // Prime the fault handler.
 }
 
+void blinkLeds(void)
+{
+  FAULT(0);
+  DATA(0);
+  ONLINE(0);
+  delay(400);
+  FAULT(1);
+  delay(400);
+  FAULT(0);
+  delay(80);
+  DATA(1);
+  delay(400);
+  DATA(0);
+  delay(80);
+  ONLINE(1);
+  delay(400);
+  ONLINE(0);
+  delay(200);
+  FAULT(1);
+  DATA(1);
+  ONLINE(1);
+  delay(400);
+  FAULT(0);
+  DATA(0);
+  ONLINE(0);
+
+}
 
 void goTest()
 {
   // TODO
+  int test;
+//	Serial.write("test!");
+  noInterrupts();
+
+  test = READTEST();
+  if(test)
+  {
+    // we cannot initiate test while the punch is in "punch" mode.
+    if(inPunch)
+    {
+//    	Serial.write("in punch, no test!");
+    	interrupts();
+    	return;
+    }
+//  	Serial.write("test down, starting timer!");
+
+  	timeDown = millis();
+  }
+  else
+  {
+  //	Serial.write("stopping test!");
+  	// but, we can stop the punch whenever.
+  	stopTest();
+  }
+
+//  Serial.write((test>0)?"T":"t");
+ // DATA(test);
+interrupts();
 }
 
+void stopTest()
+{
+	noInterrupts();
+	inTest = 0;
+	DATA(0);
+	timeDown = 0;
+  Timer1.stop();
+  interrupts();
+}
+
+void beginTest(void)
+{
+  noInterrupts();
+	//Serial.write("test held, starting blink!");
+	// we should always start with a fresh pattern.
+	memset(testbuf, 1, 5);
+	inTest = 1;
+	lastBlink = 0;
+	blinkData();
+	interrupts();
+}
+
+void blinkData()
+{
+	noInterrupts();
+
+	if((millis() - lastBlink) > 500)
+	{
+  	lastBlink = millis();
+  //	Serial.write("blink!");
+
+	  int d = READDATA();
+  	DATA(!d);
+	}
+	interrupts();
+}
 
 void goOnline()
 {
-  online = digitalRead(18);
-
+  online = READONLINE();
+  //Serial.write((online>0)?"!":"?");
+//  ONLINE(online);
 }
 
 void goFault()
 {
-  paperfault = digitalRead(19);
+	noInterrupts();
+//	Serial.write("FAULT");
+  paperfault = READFAULT();
+ // Serial.write((paperfault>0)?"1":"0");
+  FAULT(paperfault);
+  interrupts();
 }
 // This gets set as the default handler, and gets called when no other command matches.
 void unrecognized(const char *command) {
@@ -148,14 +282,24 @@ void reverseLine()
 
 void beginPunch()
 {
-	inPunch = 1;
-	Serial.write("OK +++++ TO END\n");
+	if(!inTest)
+	{
+   	inPunch = 1;
+    DATA(0);
+   	Serial.write("OK +++++ TO END\n");
+	}
+	else
+	{
+		// we're running a test.
+		Serial.write("ERROR PUNCH BUSY");
+	}
 }
 
 void endPunch()
 {
 	inPunch = 0;
 	reset_buffer();
+	DATA(0);
 	Serial.write("OK PUNCH END\n");
 }
 
@@ -182,6 +326,7 @@ void readPunch()
   	{
   		if(buf[4] == '\n' || buf[4] == '\r')
   		{
+  			blinkData();
   			sendcode(buf);
 	  		reset_buffer();
 	  		return;
@@ -346,7 +491,8 @@ void sendcode(unsigned short * code)
 
     low_sendcode(tw);
       if(i>=30) {
-      	Serial.write("OKP\n");
+      	if(inPunch)
+        	Serial.write("OKP\n");
       	return;
       }
   	}
@@ -358,6 +504,7 @@ void sendcode(unsigned short * code)
 
 void low_sendcode(unsigned short * code)
 {
+
 #ifdef DEBUG
 	int r, y, q;
 	Serial.write("> ");
@@ -373,26 +520,27 @@ void low_sendcode(unsigned short * code)
   	  y <<= 1;
     }
 	}
-
 	Serial.write("\n");
 #endif /* DEBUG */
 	PORTB = code[3];
 	PORTC = code[2];
-	PORTD = code[2];
-	PORTF = code[0];
+	PORTD = code[1];
+	PORTF = (code[0]);
+
+//	PORTF |= (1<<PF7); // leave the high pin on, for paper feed.
 
 	delay(3);
 
 	PORTB = 0;
 	PORTC = 0;
 	PORTD = 0;
-	PORTF &= 0b10000000; // leave the high pin on, for paper feed.
+	PORTF &= (1<<PF7); // leave the high pin on, for paper feed.
 
 	delay(3);
 
 	PORTF = 0;
 
-	delay(45);
+	delay(55);
 }
 
 void drain()
@@ -403,6 +551,52 @@ void drain()
 
 void loop()
 {
+//	DATA(1);
+//	delay(45);
+//	DATA(0);
+ // delay(1000);
+//	return;
+//	PORTE = 0;
+//  PORTE |=(1<<PE1);
+/*
+	PORTF=0;
+	PORTE|=(1<<PE1);
+	//PORTF|=(1<<PF7);
+	delay(6);
+	//PORTF=0;
+	PORTE&=~(1<<PE1);
+	delay(1000);
+	return;
+	*/
+	//Serial.write("loop\n");
+	if(!inTest && timeDown)
+	{
+		if(millis() - timeDown > 2000)
+			beginTest();
+	}
+
+	if(inTest)
+	{
+		unsigned short testbuf2[5];
+		unsigned short * q;
+    // run 1 set of pins.
+		int a;
+		blinkData();
+		for(int b = 0; b < 4; b++)
+		{
+  		if(testbuf[b] > 128)
+      	testbuf[b] = 1;
+  		testbuf2[b] = testbuf[b];
+  		testbuf[b] <<=1;
+		}
+
+		testbuf2[0]|=(1<<7);
+
+		q = &(testbuf2[0])+0;
+
+	sendcode(q);
+	}
+
 	if (Serial.dtr())
 	{
 		if(!serialUp)
@@ -416,6 +610,7 @@ void loop()
 
 	if (serialUp)
 	{
+		ONLINE(1);
 		if(!inPunch)
 		{
 			cmd.readSerial();
@@ -424,5 +619,10 @@ void loop()
 		{
 			readPunch();
 		}
+	}
+	else
+	{
+		DATA(0);
+		ONLINE(0);
 	}
 }

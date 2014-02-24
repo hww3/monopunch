@@ -23,20 +23,24 @@ void setup();
 //add your function definitions for the project monopunch here
 
 
-#define FW_VERSION 0.9
-
+#define FW_VERSION "0.9.5"
+void blinkLeds();
+void stopTest();
+void blinkData();
 void unrecognized(const char *command);
 void displayVersion();
 void displayStatus();
 void displayHello();
 void advanceLine();
 void reverseLine();
+void beginTest(void);
 void beginPunch();
 void endPunch();
 void readPunch();
 void sendcode(unsigned short * code);
 void goFault();
 void goOnline();
+void goTest();
 
 void drain();
 void low_sendcode(unsigned short * code);
