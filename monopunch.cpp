@@ -71,7 +71,7 @@ void setup()
 	DDRE |= (1<<PE5); // OUTPUT
 
 	PORTE |= (1<<PE4);
-//	PORTE |= (1<<PE6);
+	PORTE &= ~(1<<PE6);
 //	PORTE &= ~(1<<PE7);
 
 	DDRA |= (1<<PA5); // OUTPUT
@@ -193,7 +193,7 @@ void blinkData()
 {
 	noInterrupts();
 
-	if((millis() - lastBlink) > 500)
+	if((millis() - lastBlink) > 250)
 	{
   	lastBlink = millis();
   //	Serial.write("blink!");
@@ -214,7 +214,7 @@ void goOnline()
 void goFault()
 {
 	noInterrupts();
-//	Serial.write("FAULT");
+	Serial.write("FAULT");
   paperfault = READFAULT();
  // Serial.write((paperfault>0)?"1":"0");
   FAULT(paperfault);
@@ -581,7 +581,7 @@ void loop()
 		unsigned short * q;
     // run 1 set of pins.
 		int a;
-		blinkData();
+	  blinkData();
 		for(int b = 0; b < 4; b++)
 		{
   		if(testbuf[b] > 128)
@@ -622,7 +622,7 @@ void loop()
 	}
 	else
 	{
-		DATA(0);
+//		DATA(0);
 		ONLINE(0);
 	}
 }
