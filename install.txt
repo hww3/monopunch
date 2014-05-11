@@ -1,0 +1,9 @@
+# bootloader size is 2048 words long, enable boot on reset bit, bod @ 2.4v:
+
+cd $HOME/devel/lufa/Bootloaders/HID
+/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avrdude -c avrispmkii \
+  -P usb -p at90usb1286 -U lfuse:w:0xde:m -U hfuse:w:0xda:m -U efuse:w:0xf3:m -U flash:w:BootloaderHID.hex
+
+
+$HOME/devel/lufa/Bootloaders/HID/HostLoaderApp/hid_bootloader_cli \
+  -w $HOME/Documents/ArduinoEclipse/monopunch/Release/monopunch.hex -mmcu=at90usb1286

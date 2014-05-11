@@ -1,6 +1,6 @@
-int main()
+int main(int argc, array argv)
 {
-  Stdio.File f = Stdio.File("/dev/cu.usbmodem12341", "rw");
+  Stdio.File f = Stdio.File(argc>1?argv[1]:"/dev/cu.usbmodem12341", "rw");
 /*
   f->write("AT\r\n");
   werror("RES: %O\n", f->read(100, 1));

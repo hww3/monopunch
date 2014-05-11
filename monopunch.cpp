@@ -2,7 +2,7 @@
 #include "monopunch.h"
 #include <SerialCommand.h>
 #include <TimerOne.h>
-
+#include <avr/wdt.h>
 //#define DEBUG
 
 /*
@@ -46,12 +46,16 @@ int lastBlink = 0;
 //The setup function is called once at startup of the sketch
 void setup()
 {
+  // important: this disables the WDT so that the bootloader doesn't restart itself.
+  MCUSR = 0;
+  wdt_disable();
+
 	buf = (unsigned short *)malloc(6);
 	memset(buf, 0, 6);
 	testbuf = (unsigned short *)malloc(5);
 	memset(testbuf, 1, 5);
 
-	Serial.begin(9600); // USB is always 12 Mbit/sec
+	Serial.begin(9600); // USB is always 12 Mbit/sec, so this is just a formality.
 
 	PORTA = 0;
 	PORTB = 0;
