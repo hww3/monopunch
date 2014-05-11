@@ -23,7 +23,7 @@ void setup();
 //add your function definitions for the project monopunch here
 
 
-#define FW_VERSION "0.9.5"
+#define FW_VERSION "1.0.0"
 void blinkLeds();
 void stopTest();
 void blinkData();
