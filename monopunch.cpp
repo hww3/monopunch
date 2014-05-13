@@ -35,7 +35,7 @@
 SerialCommand cmd;
 int inPunch = 0;
 int serialUp = 0;
-int online = 1	;
+int online = 0;
 int paperfault = 0;
 int inTest = 0;
 unsigned short * buf;
@@ -52,11 +52,10 @@ void setup()
 
 	buf = (unsigned short *)malloc(6);
 	memset(buf, 0, 6);
-	testbuf = (unsigned short *)malloc(5);
+	testbuf = (unsigned short *)malloc(6);
 	memset(testbuf, 1, 5);
 
 	Serial.begin(9600); // USB is always 12 Mbit/sec, so this is just a formality.
-
 	PORTA = 0;
 	PORTB = 0;
 	PORTC = 0;
@@ -89,7 +88,7 @@ void setup()
 
 	attachInterrupt(INT4, goTest, CHANGE);
 	attachInterrupt(INT6, goFault, CHANGE);
-	attachInterrupt(INT7, goOnline, CHANGE);
+//	attachInterrupt(INT7, goOnline, CHANGE);
 
 	cmd.addCommand("AT", displayHello);
   cmd.addCommand("ATI", displayVersion);
@@ -105,7 +104,7 @@ void setup()
   blinkLeds();
 
 
-  goOnline();
+  //goOnline();
  // goTest();
   goFault(); // Prime the fault handler.
 }
@@ -174,10 +173,14 @@ interrupts();
 void stopTest()
 {
 	noInterrupts();
+  Timer1.stop();
 	inTest = 0;
+	inPunch = 0;
+	lastBlink = 0;
 	DATA(0);
 	timeDown = 0;
-  Timer1.stop();
+	reset_buffer();
+	//cmd.clearBuffer();
   interrupts();
 }
 
@@ -211,6 +214,7 @@ void blinkData()
 void goOnline()
 {
   online = READONLINE();
+//	online = 0; //= Serial.dtr();
   //Serial.write((online>0)?"!":"?");
 //  ONLINE(online);
 }
@@ -218,7 +222,7 @@ void goOnline()
 void goFault()
 {
 	noInterrupts();
-	Serial.write("FAULT");
+//	Serial.write("FAULT");
   paperfault = READFAULT();
  // Serial.write((paperfault>0)?"1":"0");
   FAULT(paperfault);
@@ -226,7 +230,9 @@ void goFault()
 }
 // This gets set as the default handler, and gets called when no other command matches.
 void unrecognized(const char *command) {
-  Serial.println("What?");
+  Serial.print("What? ");
+  Serial.println(command);
+  cmd.clearBuffer();
 }
 
 void displayHello()
@@ -236,7 +242,7 @@ void displayHello()
 
 void displayVersion()
 {
-	Serial.write("OK Monotype 21 Channel Punch Interface ");
+	Serial.write("OK Monotype 31 Channel Punch Interface ");
 	Serial.write(FW_VERSION);
 	Serial.write("\n");
 }
@@ -286,7 +292,13 @@ void reverseLine()
 
 void beginPunch()
 {
-	if(!inTest)
+	if(!online)
+	{
+   	inPunch = 0;
+    DATA(0);
+   	Serial.write("ERROR OFFLINE\n");
+	}
+	else if(!inTest)
 	{
    	inPunch = 1;
     DATA(0);
@@ -573,6 +585,8 @@ void loop()
 	return;
 	*/
 	//Serial.write("loop\n");
+	goOnline();
+
 	if(!inTest && timeDown)
 	{
 		if(millis() - timeDown > 2000)
@@ -598,35 +612,37 @@ void loop()
 
 		q = &(testbuf2[0])+0;
 
-	sendcode(q);
+	  sendcode(q);
 	}
 
-	if (Serial.dtr())
+	if (!Serial.dtr())
+	{
+		serialUp = 0;
+		inPunch = 0;
+		online = 0;
+		ONLINE(0);
+		reset_buffer();
+	}
+	else
 	{
 		if(!serialUp)
 		{
 			serialUp = 1;  // wait for user to start the serial monitor
+			ONLINE(1);
+			inPunch = 0;
 			reset_buffer();
 		}
 	}
-	else
-		inPunch = 0;
 
 	if (serialUp)
 	{
-		ONLINE(1);
-		if(!inPunch)
-		{
-			cmd.readSerial();
-		}
-		else
+    if(inPunch)
 		{
 			readPunch();
 		}
-	}
-	else
-	{
-//		DATA(0);
-		ONLINE(0);
+		else
+		{
+			cmd.readSerial();
+		}
 	}
 }
