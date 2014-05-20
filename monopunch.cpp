@@ -53,7 +53,7 @@ void setup()
 	buf = (unsigned short *)malloc(6);
 	memset(buf, 0, 6);
 	testbuf = (unsigned short *)malloc(6);
-	memset(testbuf, 1, 5);
+	memset(testbuf, 0, 6);
 
 	Serial.begin(9600); // USB is always 12 Mbit/sec, so this is just a formality.
 	PORTA = 0;
@@ -189,7 +189,8 @@ void beginTest(void)
   noInterrupts();
 	//Serial.write("test held, starting blink!");
 	// we should always start with a fresh pattern.
-	memset(testbuf, 1, 5);
+	memset(testbuf, 0, 6);
+	testbuf[0] = 1, testbuf[1] = 1, testbuf[2] = 1, testbuf[3] = 1;
 	inTest = 1;
 	lastBlink = 0;
 	blinkData();
@@ -595,7 +596,7 @@ void loop()
 
 	if(inTest)
 	{
-		unsigned short testbuf2[5];
+		unsigned short testbuf2[6];
 		unsigned short * q;
     // run 1 set of pins.
 		int a;
