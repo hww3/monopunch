@@ -35,6 +35,7 @@
 SerialCommand cmd;
 int inPunch = 0;
 int serialUp = 0;
+int was_in_test = 0;
 int online = 0;
 int paperfault = 0;
 int inTest = 0;
@@ -156,7 +157,8 @@ void goTest()
     }
 //  	Serial.write("test down, starting timer!");
 
-  	timeDown = millis();
+    if(!was_in_test)
+    	timeDown = millis();
   }
   else
   {
@@ -174,6 +176,7 @@ void stopTest()
 {
 	noInterrupts();
   Timer1.stop();
+  was_in_test = 0;
 	inTest = 0;
 	inPunch = 0;
 	lastBlink = 0;
@@ -192,6 +195,7 @@ void beginTest(void)
 	memset(testbuf, 0, 6);
 	testbuf[0] = 1, testbuf[1] = 1, testbuf[2] = 1, testbuf[3] = 1;
 	inTest = 1;
+	was_in_test = 1;
 	lastBlink = 0;
 	blinkData();
 	interrupts();
@@ -393,6 +397,8 @@ void sendcode(unsigned short * code)
 		Serial.write("ERROR OFFLINE PUNCH END\n");
 		drain();
 		inPunch = 0;
+		if(inTest)
+			stopTest();
 		return;
 	}
 	if(paperfault)
@@ -400,6 +406,8 @@ void sendcode(unsigned short * code)
 		Serial.write("ERROR FAULT PUNCH END\n");
 		drain();
 		inPunch = 0;
+		if(inTest)
+			stopTest();
 		return;
 	}
 
